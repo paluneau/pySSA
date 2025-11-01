@@ -9,7 +9,7 @@ def report_significance(sig, p_val, conf_lvl):
         print(f"Speedup is not statistically significant with confidence level {conf_lvl}% (p-val. = {p_val}).")
 
 
-def mean_speedup_test(t_ref,t_opt,alpha=0.05):
+def mean_speedup_test(t_ref,t_opt,alpha=0.05,skip_dispersion_test=False):
     # TODO: Compute a confidence interval for the mean values (when normal, use student statistic, otherwise use normal statistic (asymptotic) or bootstrap)
     conf_lvl = 100*(1-alpha)
 
@@ -22,9 +22,10 @@ def mean_speedup_test(t_ref,t_opt,alpha=0.05):
 
     # Dispersion test
     same_var = False
-    test_var = bartlett(t_opt,t_ref) if model_valid else levene(t_opt,t_ref)
-    same_var = test_var.pvalue > alpha
-    # TODO: add potentially console output to indicate if variance is equal or not
+    if not skip_dispersion_test:
+        test_var = bartlett(t_opt,t_ref) if model_valid else levene(t_opt,t_ref)
+        same_var = test_var.pvalue > alpha
+        # TODO: add potentially console output to indicate if variance is equal or not
 
     # Location test (alternative hypothesis is mean_opt < mean_ref)
     t_test = ttest_ind(t_opt, t_ref, alternative="less", equal_var=same_var)
