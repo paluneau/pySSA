@@ -1,2 +1,2 @@
 # pySSA
-Statistical Speedup Analysis in Python, based on "The Speedup Test".
+Based on "The Speedup Test" from the papers [_The Speedup-Test: a statistical methodology for programme speedup analysis and computation_](https://doi.org/10.1080/02786828708959166) (2012) by Touati, Worms and Briais (accessible on [HAL](https://hal.science/inria-00443839v2)). This project provides a Python implementation of the speedup test.
