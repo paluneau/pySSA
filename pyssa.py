@@ -10,7 +10,9 @@ def report_significance(sig, p_val, conf_lvl):
 
 
 def mean_speedup_test(t_ref,t_opt,alpha=0.05):
+    # TODO: Compute a confidence interval for the mean values (when normal, use student statistic, otherwise use normal statistic (asymptotic) or bootstrap)
     conf_lvl = 100*(1-alpha)
+
     # Normality
     test_normal_ref = normaltest(t_ref)
     test_normal_opt = normaltest(t_opt)
@@ -18,13 +20,12 @@ def mean_speedup_test(t_ref,t_opt,alpha=0.05):
     if not model_valid:
         warn(f"Samples are not normally distributed (ref. p-val. = {test_normal_ref.pvalue}, opt. p-val. = {test_normal_opt.pvalue}, risk level = {alpha}). The confidence level ({conf_lvl}%) might be incorrect.")
 
-    # Dispersion test (if normal data)
+    # Dispersion test
     same_var = False
-    if model_valid:
-         test_var = bartlett(t_opt,t_ref) # TODO: Alternatively use the Levene test (nonparametric)
-         print(test_var.pvalue)
-         same_var = test_var.pvalue > alpha
-             
+    test_var = bartlett(t_opt,t_ref) if model_valid else levene(t_opt,t_ref)
+    same_var = test_var.pvalue > alpha
+    # TODO: add potentially console output to indicate if variance is equal or not
+
     # Location test (alternative hypothesis is mean_opt < mean_ref)
     t_test = ttest_ind(t_opt, t_ref, alternative="less", equal_var=same_var)
     stat_sign = t_test.pvalue < alpha
@@ -37,6 +38,7 @@ def mean_speedup_test(t_ref,t_opt,alpha=0.05):
     return speedup, stat_sign
 
 def median_speedup_test(t_ref,t_opt,alpha=0.05):
+    # TODO: compute confidence interval for the median using (Boudec, Thm 2.1) or bootstrap
     conf_lvl = 100*(1-alpha)
 
     # Test location shift
