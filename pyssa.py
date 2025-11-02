@@ -1,6 +1,8 @@
 import numpy as np
 from warnings import warn
-from scipy.stats import kstest, mannwhitneyu, normaltest, ttest_ind, bartlett, levene
+from scipy.stats import kstest, mannwhitneyu, normaltest, ttest_ind, bartlett, levene, median_test, t, norm, sem
+from scipy.stats.mstats import median_cihs
+
 
 def report_significance(sig, p_val, conf_lvl):
     if sig:
@@ -18,27 +20,40 @@ def mean_speedup_test(t_ref,t_opt,alpha=0.05,skip_dispersion_test=False):
     test_normal_opt = normaltest(t_opt)
     model_valid = (test_normal_ref.pvalue > alpha) and (test_normal_opt.pvalue > alpha)
     if not model_valid:
-        warn(f"Samples are not normally distributed (ref. p-val. = {test_normal_ref.pvalue}, opt. p-val. = {test_normal_opt.pvalue}, risk level = {alpha}). The confidence level ({conf_lvl}%) might be incorrect.")
+        warn(f"Samples are not normally distributed (ref. p-val. = {test_normal_ref.pvalue}, opt. p-val. = {test_normal_opt.pvalue}, risk level = {alpha}). The confidence level ({conf_lvl}%) might be incorrect. Ensure the sample size is large enough (>30).")
 
     # Dispersion test
     same_var = False
     if not skip_dispersion_test:
         test_var = bartlett(t_opt,t_ref) if model_valid else levene(t_opt,t_ref)
         same_var = test_var.pvalue > alpha
-        # TODO: add potentially console output to indicate if variance is equal or not
+        if same_var:
+            print(f"The variances of the two samples are similar (p-val. = {test_var.pvalue}).")
+        else:
+            print(f"The variances of the two samples are different (p-val. = {test_var.pvalue}).")
 
     # Location test (alternative hypothesis is mean_opt < mean_ref)
     t_test = ttest_ind(t_opt, t_ref, alternative="less", equal_var=same_var)
     stat_sign = t_test.pvalue < alpha
     report_significance(stat_sign, t_test.pvalue, conf_lvl)
 
+    # Confidence interval
+    ref_ci = ()
+    opt_ci = ()
+    if model_valid :
+        ref_ci = t.interval(1-alpha, df=t_ref.shape[0]-1, loc=np.mean(t_ref), scale=sem(t_ref))
+        opt_ci = t.interval(1-alpha, df=t_opt.shape[0]-1, loc=np.mean(t_opt), scale=sem(t_opt))
+    else:
+        ref_ci = norm.interval(1-alpha, loc=np.mean(t_ref), scale=sem(t_ref))
+        opt_ci = norm.interval(1-alpha, loc=np.mean(t_opt), scale=sem(t_opt))
+
     speedup = 1 - np.mean(t_opt)/np.mean(t_ref)
 
     print(f"Reported Speedup = {100*speedup}%")
 
-    return speedup, stat_sign
+    return speedup, stat_sign, t_test.pvalue, ref_ci, opt_ci
 
-def median_speedup_test(t_ref,t_opt,alpha=0.05):
+def median_speedup_test(t_ref,t_opt,alpha=0.05,force_mood=False):
     # TODO: compute confidence interval for the median using (Boudec, Thm 2.1) or bootstrap
     conf_lvl = 100*(1-alpha)
 
@@ -48,17 +63,27 @@ def median_speedup_test(t_ref,t_opt,alpha=0.05):
     test_same_dist = kstest(t_ref - ref_med, t_opt - opt_med)
     model_valid = test_same_dist.pvalue > alpha
     if not model_valid:
-        warn(f"Samples do not satisfy the location shift hypothesis (p-val. = {test_same_dist.pvalue}, risk level = {alpha}). The confidence level ({conf_lvl}%) might be incorrect.")
+        warn(f"Samples do not satisfy the location shift hypothesis (p-val. = {test_same_dist.pvalue}, risk level = {alpha}). The confidence level ({conf_lvl}%) might be incorrect. Ensure sample size is large enough (>30).")
     
-
+    #TODO: if the location shift assumption is not valid, use median_test?
     # Location test (alternative hypothesis is median_opt < median_ref)
-    U_test = mannwhitneyu(t_opt, t_ref, alternative="less")
-    stat_sign = U_test.pvalue < alpha
-    report_significance(stat_sign, U_test.pvalue, conf_lvl)
+    pval = 0.
+    if model_valid and not force_mood:
+        med_test = mannwhitneyu(t_opt, t_ref, alternative="less")
+        pval = med_test.pvalue
+    else:
+        med_test = median_test(t_opt, t_ref)
+        pval = med_test.pvalue/2 # p-value has to be divided by 2 because we want to consider a one-sided alternative.
+    stat_sign = pval < alpha 
+    report_significance(stat_sign, pval, conf_lvl)
+
+    # Confidence interval for median
+    ref_ci = median_cihs(t_ref,alpha=alpha)
+    opt_ci = median_cihs(t_opt,alpha=alpha)
 
     speedup = 1 - opt_med/ref_med
 
     print(f"Reported speedup = {100*speedup}%")
 
-    return speedup, stat_sign
+    return speedup, stat_sign, pval, ref_ci, opt_ci
 
