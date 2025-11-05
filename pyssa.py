@@ -3,7 +3,8 @@ from warnings import warn
 from scipy.stats import kstest, mannwhitneyu, normaltest, ttest_ind, bartlett, levene, median_test, t, norm, sem, bootstrap
 from scipy.stats.mstats import median_cihs
 
-#TODO: checks for the data shapes
+#TODO: checks for the data shapes (are same size inputs needed for some tests? check the size, >30?)
+#TODO: Design tests (Unit tests for user inputs, asserts, invariants, AND statistical tests)
 
 
 def report_significance(sig, p_val, conf_lvl):
@@ -14,6 +15,9 @@ def report_significance(sig, p_val, conf_lvl):
 
 
 def mean_speedup_test(t_ref, t_opt, alpha=0.05, skip_dispersion_test=False, bootstrap_ci=False):
+    assert t_ref.ndim == 1
+    assert t_opt.ndim == 1
+
     conf_lvl = 100*(1-alpha)
 
     # Normality
@@ -58,11 +62,18 @@ def mean_speedup_test(t_ref, t_opt, alpha=0.05, skip_dispersion_test=False, boot
 
     speedup = 1 - np.mean(t_opt)/np.mean(t_ref)
 
+    print(f"Ref. Time std = {np.std(t_ref)}")
+    print(f"Opt. Time std = {np.std(t_opt)}")
+    print(f"Ref. Time mean = {np.mean(t_ref)}")
+    print(f"Opt. Time mean = {np.mean(t_opt)}")
     print(f"Reported Speedup = {100*speedup}%")
 
     return speedup, stat_sign, t_test.pvalue, ref_ci, opt_ci
 
 def median_speedup_test(t_ref, t_opt, alpha=0.05, force_mood=False, bootstrap_ci=False):
+    assert t_ref.ndim == 1
+    assert t_opt.ndim == 1
+    
     conf_lvl = 100*(1-alpha)
 
     # Test location shift
@@ -100,6 +111,10 @@ def median_speedup_test(t_ref, t_opt, alpha=0.05, force_mood=False, bootstrap_ci
 
     speedup = 1 - opt_med/ref_med
 
+    print(f"Ref. Time std = {np.std(t_ref)}")
+    print(f"Opt. Time std = {np.std(t_opt)}")
+    print(f"Ref. Time median = {ref_med}")
+    print(f"Opt. Time median = {opt_med}")
     print(f"Reported speedup = {100*speedup}%")
 
     return speedup, stat_sign, pval, ref_ci, opt_ci
