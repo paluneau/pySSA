@@ -14,7 +14,7 @@ def report_significance(sig, p_val, conf_lvl):
         print(f"Speedup is not statistically significant with confidence level {conf_lvl}% (p-val. = {p_val}).")
 
 
-def mean_speedup_test(t_ref, t_opt, alpha=0.05, skip_dispersion_test=False, bootstrap_ci=False):
+def mean_speedup_test(t_ref, t_opt, alpha=0.05, skip_dispersion_test=False, bootstrap_ci=False, speeddown=False):
     assert t_ref.ndim == 1
     assert t_opt.ndim == 1
 
@@ -38,7 +38,8 @@ def mean_speedup_test(t_ref, t_opt, alpha=0.05, skip_dispersion_test=False, boot
             print(f"The variances of the two samples are different (p-val. = {test_var.pvalue}).")
 
     # Location test (alternative hypothesis is mean_opt < mean_ref)
-    t_test = ttest_ind(t_opt, t_ref, alternative="less", equal_var=same_var)
+    side = "less" if not speeddown else "greater"
+    t_test = ttest_ind(t_opt, t_ref, alternative=side, equal_var=same_var)
     stat_sign = t_test.pvalue < alpha
     report_significance(stat_sign, t_test.pvalue, conf_lvl)
 
@@ -70,7 +71,7 @@ def mean_speedup_test(t_ref, t_opt, alpha=0.05, skip_dispersion_test=False, boot
 
     return speedup, stat_sign, t_test.pvalue, ref_ci, opt_ci
 
-def median_speedup_test(t_ref, t_opt, alpha=0.05, force_mood=False, bootstrap_ci=False):
+def median_speedup_test(t_ref, t_opt, alpha=0.05, force_mood=False, bootstrap_ci=False, speeddown=False):
     assert t_ref.ndim == 1
     assert t_opt.ndim == 1
     
@@ -87,7 +88,8 @@ def median_speedup_test(t_ref, t_opt, alpha=0.05, force_mood=False, bootstrap_ci
     # Location test (alternative hypothesis is median_opt < median_ref)
     pval = 0.
     if model_valid and not force_mood:
-        med_test = mannwhitneyu(t_opt, t_ref, alternative="less")
+        side = "less" if not speeddown else "greater"
+        med_test = mannwhitneyu(t_opt, t_ref, alternative=side)
         pval = med_test.pvalue
     else:
         med_test = median_test(t_opt, t_ref)
